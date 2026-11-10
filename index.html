@@ -28,15 +28,16 @@ function applyTheme(t){
   --ink:#45433f; --on-ink:#f4f2ed;                 /* 深灰色块 和 色块上的字 */
   --accent:#a97be8; --accent-soft:#ddd0f3; --danger:#ef4636; --cat:#e8647c;
   /* 三种分类：k = 深色（勾选圈、小色条），s = 浅色底板 */
-  --k0:#a97be8; --s0:#e0d5f4;      /* 紫：稿件 / 小说更新 */
-  --k1:#7b1e30; --s1:#ecd3d6;      /* 勃艮第红：作业 / 画画更新 */
-  --k2:#3d9a6d; --s2:#d2e7da;      /* 绿：生活 */
+  --k0:#75726c; --s0:#d5d3cd;      /* 浅灰：稿件 / 小说更新 */
+  --k1:#6f8296; --s1:#d5dbe1;      /* 浅灰蓝：作业 / 画画更新 */
+  --k2:#9585b8; --s2:#ddd8e8;      /* 浅紫：生活 */
+  --plus:#d9979f;                  /* 右下角“＋”圆钮：比猫眼睛浅灰一点的粉红 */
   --radius:22px; --radius-s:14px;
   --font:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
 }
 :root[data-theme="dark"]{ color-scheme:dark; --bg:#111111; --card:#1e1e1f; --text:#f1efea; --muted:#8b8882; --line:#2f2f30;
   --ink:#d9d6cf; --on-ink:#1c1c1c; --accent:#b48cf0; --accent-soft:#3a2d52; --danger:#f25a4b;
-  --k0:#b48cf0; --s0:#33294a; --k1:#d0677c; --s1:#45262c; --k2:#63c394; --s2:#213d31; }
+  --k0:#b5b2ab; --s0:#2d2d2e; --k1:#9aabbb; --s1:#2a323a; --k2:#ab9fcb; --s2:#322e3f; --plus:#b9808a; }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;margin:0}
 body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:15px;letter-spacing:-.01em;overflow:hidden;touch-action:manipulation;-webkit-user-select:none;user-select:none}
@@ -76,7 +77,7 @@ h2{font-size:32px;font-weight:500;letter-spacing:-.03em;margin:0}
 .big{font-size:42px;font-weight:500;letter-spacing:-.04em;line-height:1.15}
 .big small{font-size:22px;opacity:.6;font-weight:400}
 .track{height:12px;border-radius:4px;background:color-mix(in srgb,var(--on-ink) 14%,transparent);overflow:hidden;margin-top:10px}
-.track div{height:100%;border-radius:4px;background:var(--accent);transition:width .2s}
+.track div{height:100%;border-radius:4px;background:var(--cat);transition:width .2s}
 
 /* 三种颜色的任务底板 */
 .board{border-radius:var(--radius);padding:12px 12px 6px;margin-bottom:12px}
@@ -161,7 +162,7 @@ h2{font-size:32px;font-weight:500;letter-spacing:-.03em;margin:0}
 #tabs .pill button.on{flex:1.9;background:var(--bg);color:var(--text);opacity:1}
 #tabs .pill button.on span{display:inline}
 #tabs .pill .ico{width:20px;height:20px}
-#tabs .plus{flex:none;width:52px;height:52px;border-radius:50%;background:var(--accent);color:#141414;display:flex;align-items:center;justify-content:center}
+#tabs .plus{flex:none;width:52px;height:52px;border-radius:50%;background:var(--plus);color:#f4f2ed;display:flex;align-items:center;justify-content:center}
 #tabs .plus .ico{width:24px;height:24px}
 </style>
 </head>
