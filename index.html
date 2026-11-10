@@ -1,0 +1,539 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Ee Note</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Ee Note">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#e7e5e0">
+<script>
+/* 页面一开始就定好浅色还是深色，避免打开时闪一下 */
+function applyTheme(t){
+  var dark=t==='dark'||(t!=='light'&&window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches);
+  document.documentElement.setAttribute('data-theme',dark?'dark':'light');
+  var m=document.querySelector('meta[name="theme-color"]'); if(m) m.content=dark?'#111111':'#e7e5e0';
+}
+(function(){var t='auto';try{var s=JSON.parse(localStorage.getItem('eenote-v1'));if(s&&s.settings&&s.settings.theme)t=s.settings.theme;}catch(e){}applyTheme(t);})();
+</script>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<style>
+/* ===== 外观变量：以后想换颜色主要改这里 ===== */
+:root{
+  color-scheme:light;
+  --bg:#e7e5e0; --card:#f4f2ed; --text:#2a2927; --muted:#8d8a84; --line:#d3d0c9;
+  --ink:#45433f; --on-ink:#f4f2ed;                 /* 深灰色块 和 色块上的字 */
+  --accent:#a97be8; --accent-soft:#ddd0f3; --danger:#ef4636; --cat:#e8647c;
+  /* 三种分类：k = 深色（勾选圈、小色条），s = 浅色底板 */
+  --k0:#a97be8; --s0:#e0d5f4;      /* 紫：稿件 / 小说更新 */
+  --k1:#7b1e30; --s1:#ecd3d6;      /* 勃艮第红：作业 / 画画更新 */
+  --k2:#3d9a6d; --s2:#d2e7da;      /* 绿：生活 */
+  --radius:22px; --radius-s:14px;
+  --font:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+}
+:root[data-theme="dark"]{ color-scheme:dark; --bg:#111111; --card:#1e1e1f; --text:#f1efea; --muted:#8b8882; --line:#2f2f30;
+  --ink:#d9d6cf; --on-ink:#1c1c1c; --accent:#b48cf0; --accent-soft:#3a2d52; --danger:#f25a4b;
+  --k0:#b48cf0; --s0:#33294a; --k1:#d0677c; --s1:#45262c; --k2:#63c394; --s2:#213d31; }
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:15px;letter-spacing:-.01em;overflow:hidden;touch-action:manipulation;-webkit-user-select:none;user-select:none}
+button{font:inherit;color:inherit;border:0;background:none;padding:0;cursor:pointer}
+input{font:inherit;color:inherit;font-size:16px}
+#app{height:100%;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top)}
+main{flex:1;min-height:0;position:relative}
+.page{position:absolute;inset:0;display:none;flex-direction:column}
+.page.on{display:flex}
+.scroll{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px 14px 20px}
+.muted{color:var(--muted)} .small{font-size:12px}
+.grow{flex:1;min-width:0}
+.ico{width:1.25em;height:1.25em;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;vertical-align:-.25em;flex:none}
+.card{background:var(--card);border-radius:var(--radius);padding:14px;margin-bottom:12px}
+.inkc{background:var(--ink);color:var(--on-ink)}
+.inkc .muted{color:var(--on-ink);opacity:.6}
+
+/* 顶部：‹ 日期 › */
+.topbar{display:flex;align-items:center;justify-content:space-between;margin:2px 0 12px}
+.topbar .nav{width:36px;height:36px;border-radius:50%;background:var(--card);font-size:16px;flex:none}
+.topbar .ttl{text-align:center;min-width:0}
+.topbar .ttl b{display:block;font-size:28px;font-weight:500;letter-spacing:-.03em;white-space:nowrap}
+.topbar .ttl span{display:block;font-size:12px;color:var(--muted);margin-top:1px}
+.back{display:inline-block;padding:2px 10px;border-radius:999px;background:var(--accent-soft);color:var(--text);font-size:12px}
+h2{font-size:32px;font-weight:500;letter-spacing:-.03em;margin:0}
+.headrow{display:flex;align-items:center;justify-content:space-between;margin:4px 2px 12px}
+.gear{width:38px;height:38px;border-radius:50%;background:var(--card);display:flex;align-items:center;justify-content:center;font-size:17px}
+
+/* 进度色块（带猫脸） */
+.eared{position:relative;margin-top:26px}
+.catface{position:absolute;right:0;top:-26px;width:120px;height:58px;pointer-events:none}
+.catface .e{fill:var(--ink)}
+.catface .p{fill:var(--cat)}
+.catface .m{fill:none;stroke:var(--cat);stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.catface.nav{right:0;top:-15px;width:114px;height:30px;z-index:2}
+.catface.nav .m{stroke-width:1.3}
+.big{font-size:42px;font-weight:500;letter-spacing:-.04em;line-height:1.15}
+.big small{font-size:22px;opacity:.6;font-weight:400}
+.track{height:12px;border-radius:4px;background:color-mix(in srgb,var(--on-ink) 14%,transparent);overflow:hidden;margin-top:10px}
+.track div{height:100%;border-radius:4px;background:var(--accent);transition:width .2s}
+
+/* 三种颜色的任务底板 */
+.board{border-radius:var(--radius);padding:12px 12px 6px;margin-bottom:12px}
+.b0{background:var(--s0)} .b1{background:var(--s1)} .b2{background:var(--s2)}
+.bh{display:flex;align-items:center;gap:8px;padding:0 2px 6px}
+.bh b{font-size:17px;font-weight:500}
+.bh .dot{width:10px;height:10px;border-radius:3px;flex:none}
+.b0 .dot{background:var(--k0)} .b1 .dot{background:var(--k1)} .b2 .dot{background:var(--k2)}
+.bh span{font-size:12px;color:var(--muted)}
+.bh .addc{margin-left:auto;width:30px;height:30px;border-radius:50%;background:color-mix(in srgb,var(--card) 70%,transparent);display:flex;align-items:center;justify-content:center;font-size:15px}
+.none{font-size:13px;color:var(--muted);padding:4px 2px 10px}
+.task{display:flex;align-items:flex-start;gap:4px;border-top:1px solid color-mix(in srgb,var(--text) 10%,transparent)}
+.ck{width:40px;height:44px;flex:none;display:flex;align-items:center;justify-content:center}
+.ck i{width:22px;height:22px;border-radius:50%;border:1.8px solid var(--kc);display:flex;align-items:center;justify-content:center;color:transparent}
+.ck i svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.b0{--kc:var(--k0)} .b1{--kc:var(--k1)} .b2{--kc:var(--k2)}
+.task.done .ck i{background:var(--kc);color:var(--card)}
+.tb{flex:1;min-width:0;text-align:left;padding:11px 4px 11px 0;min-height:44px}
+.tb .t{font-size:16px;line-height:1.35;word-break:break-word}
+.tb .s{font-size:12px;color:var(--muted);margin-top:2px;line-height:1.4;word-break:break-word}
+.task.done .tb .t{text-decoration:line-through;opacity:.45}
+.task.done .tb .s{opacity:.6}
+.tag{display:inline-block;font-size:10px;padding:1px 6px;border-radius:999px;background:color-mix(in srgb,var(--card) 75%,transparent);color:var(--text);margin-left:6px;vertical-align:2px;white-space:nowrap}
+
+/* 总览：三个数字 + 月历 */
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.tile{background:var(--card);border-radius:16px;padding:11px 12px;min-width:0}
+.tile b{display:block;font-size:23px;font-weight:500;letter-spacing:-.03em;line-height:1.3;white-space:nowrap}
+.tile b small{font-size:14px;opacity:.6;font-weight:400}
+.tile span{display:block;font-size:11px;color:var(--muted)}
+.tile:first-child{background:var(--ink);color:var(--on-ink)}
+.tile:first-child span{color:var(--on-ink);opacity:.6}
+.cal{display:grid;grid-template-columns:repeat(7,1fr)}
+.cal.head span{text-align:center;font-size:11px;color:var(--muted);padding-bottom:4px}
+.cd{height:64px;border-top:1px solid var(--line);display:flex;flex-direction:column;align-items:flex-start;padding:5px 3px 0;gap:2px;min-width:0}
+.cd b{font-size:18px;font-weight:400;color:var(--muted);line-height:22px;padding:0 4px;border-radius:6px;letter-spacing:-.03em}
+.cd.has b{color:var(--text)}
+.cd.today b{background:var(--ink);color:var(--on-ink)}
+.cd.full{background:var(--accent-soft)}
+.cd.on{box-shadow:0 0 0 2px var(--ink) inset;border-radius:8px}
+.bars{display:flex;gap:2px;height:4px;margin:1px 0 1px 4px}
+.bars u{display:block;width:8px;height:4px;border-radius:1px}
+.cd i{font-style:normal;font-size:10px;line-height:11px;padding-left:4px;color:var(--muted);white-space:nowrap}
+.cd.full i{color:var(--text)}
+.dayhead{font-size:13px;color:var(--muted);padding:6px 4px 8px}
+
+/* 弹窗 */
+#sheet{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:flex-end;z-index:10}
+#sheet.on{display:flex}
+.box{background:var(--bg);width:100%;max-height:90%;overflow-y:auto;border-radius:28px 28px 0 0;padding:18px 16px calc(16px + env(safe-area-inset-bottom))}
+.box h3{margin:0 0 12px;font-size:22px;font-weight:500;letter-spacing:-.02em}
+.box .msg{color:var(--muted);margin:0 0 12px;line-height:1.5}
+.f{margin-bottom:12px}
+.f label{display:block;font-size:12px;color:var(--muted);margin-bottom:5px}
+.f input{width:100%;padding:11px 12px;border-radius:var(--radius-s);border:1.5px solid transparent;background:var(--card);outline:0;-webkit-user-select:text;user-select:text;-webkit-appearance:none;appearance:none}
+.f input:focus{border-color:var(--ink)}
+.f .hint{font-size:12px;color:var(--muted);margin-top:5px}
+.seg{display:flex;background:var(--card);border-radius:999px;padding:3px}
+.seg button{flex:1;padding:8px 10px;border-radius:999px;font-size:14px;color:var(--muted)}
+.seg button.on{background:var(--ink);color:var(--on-ink);font-weight:500}
+.chips{display:flex;flex-wrap:wrap;gap:7px}
+.chip{background:var(--card);border-radius:999px;padding:8px 14px;font-size:14px;display:flex;align-items:center;gap:6px}
+.chip.on{background:var(--ink);color:var(--on-ink)}
+.chip u{width:9px;height:9px;border-radius:3px;display:block}
+.chip.wd{width:40px;height:40px;padding:0;justify-content:center}
+.err{color:var(--danger);font-size:13px;min-height:18px}
+.btns{display:flex;gap:8px;margin-top:6px;flex-wrap:wrap}
+.btns .sp{flex:1}
+.btn{padding:10px 16px;border-radius:999px;background:var(--card);font-size:15px;font-weight:500}
+.btn.primary{background:var(--ink);color:var(--on-ink)}
+.btn.danger{color:var(--danger)}
+.set{display:flex;align-items:center;gap:10px;padding:14px 2px;border-bottom:1px solid var(--line);width:100%;text-align:left;font-size:16px}
+.set:last-of-type{border-bottom:0}
+#toast{position:fixed;left:50%;top:calc(18px + env(safe-area-inset-top));transform:translateX(-50%);background:var(--ink);color:var(--on-ink);padding:9px 18px;border-radius:99px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:20;white-space:nowrap}
+#toast.on{opacity:.95}
+
+/* 底部导航：圆角长条 + 猫耳朵 + 右侧圆形“＋” */
+#tabs{display:flex;gap:10px;align-items:center;padding:20px 14px calc(8px + env(safe-area-inset-bottom))}
+#tabs .pill{position:relative;flex:1;display:flex;gap:2px;background:var(--ink);border-radius:18px;padding:16px 5px 5px}
+#tabs .pill button{position:relative;z-index:1;flex:1;display:flex;align-items:center;justify-content:center;gap:6px;height:42px;border-radius:13px;font-size:14px;font-weight:500;color:var(--on-ink);opacity:.55}
+#tabs .pill button span{display:none}
+#tabs .pill button.on{flex:1.9;background:var(--bg);color:var(--text);opacity:1}
+#tabs .pill button.on span{display:inline}
+#tabs .pill .ico{width:20px;height:20px}
+#tabs .plus{flex:none;width:52px;height:52px;border-radius:50%;background:var(--accent);color:#141414;display:flex;align-items:center;justify-content:center}
+#tabs .plus .ico{width:24px;height:24px}
+</style>
+</head>
+<body>
+<div id="app">
+  <main>
+    <section class="page on" id="p-day"></section>
+    <section class="page" id="p-week"></section>
+    <section class="page" id="p-month"></section>
+    <section class="page" id="p-all"></section>
+  </main>
+  <nav id="tabs"></nav>
+</div>
+<div id="sheet"></div>
+<div id="toast"></div>
+<input type="file" id="importFile" accept=".json,application/json" hidden>
+
+<script>
+'use strict';
+/* ================= 数据 ================= */
+const KEY='eenote-v1';
+/* 三种分类的名字：日任务一组，周/月任务一组（顺序对应 紫 / 红 / 绿） */
+const CATS={day:['稿件','作业','生活'],week:['小说更新','画画更新','生活'],month:['小说更新','画画更新','生活']};
+const SCOPE_NAME={day:'日',week:'周',month:'月'};
+const WD=['日','一','二','三','四','五','六'];
+
+const fresh=()=>({version:1,settings:{theme:'auto'},tasks:[],repeats:[]});
+function migrate(s){
+  const d=fresh();
+  s.settings=Object.assign(d.settings,s.settings||{});
+  s.tasks=Array.isArray(s.tasks)?s.tasks:[];
+  s.repeats=Array.isArray(s.repeats)?s.repeats:[];
+  s.repeats.forEach(r=>{r.skip=r.skip||[];r.days=r.days||[];});
+  return s;
+}
+function load(){try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&typeof s==='object')return migrate(s);}catch(e){}return fresh();}
+let S=load();
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){toast('保存失败：手机存储空间不足');}}
+
+/* ================= 日期小工具 ================= */
+const pad=n=>String(n).padStart(2,'0');
+const iso=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const pd=s=>{const a=s.split('-').map(Number);return new Date(a[0],a[1]-1,a[2]||1);};
+const addDays=(s,n)=>{const d=pd(s);d.setDate(d.getDate()+n);return iso(d);};
+const today=()=>iso(new Date());
+const weekOf=s=>addDays(s,-((pd(s).getDay()+6)%7));          /* 一周从周一开始 */
+const monthOf=s=>s.slice(0,7);
+const addMonths=(m,n)=>{const d=pd(m+'-01');d.setMonth(d.getMonth()+n);return iso(d).slice(0,7);};
+const curKey=sc=>sc==='day'?today():sc==='week'?weekOf(today()):monthOf(today());
+const shift=(sc,key,n)=>sc==='day'?addDays(key,n):sc==='week'?addDays(key,7*n):addMonths(key,n);
+const md=s=>{const d=pd(s);return `${d.getMonth()+1}月${d.getDate()}日`;};
+function label(sc,key){
+  if(sc==='day') return {t:md(key),s:'周'+WD[pd(key).getDay()]};
+  if(sc==='week'){const e=addDays(key,6);return {t:md(key)+' – '+(monthOf(e)===monthOf(key)?pd(e).getDate()+'日':md(e)),s:'周一到周日'};}
+  const d=pd(key+'-01');return {t:`${d.getMonth()+1}月`,s:d.getFullYear()+'年'};
+}
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+/* ================= 重复任务 和 自动顺延 ================= */
+const matches=(r,key)=>r.scope!=='day'||r.rule==='daily'||(r.days||[]).includes(pd(key).getDay());
+const wants=(r,sc,key)=>r.scope===sc&&key>=r.start&&matches(r,key)&&!r.skip.includes(key)&&!S.tasks.some(t=>t.rid===r.id&&t.gen===key);
+/* 把某一天/周/月该出现的重复任务生成出来（只对今天及以后生成） */
+function ensure(sc,key){
+  if(key<curKey(sc)) return;
+  let n=0;
+  S.repeats.forEach(r=>{ if(wants(r,sc,key)){S.tasks.push({id:uid(),scope:sc,key,gen:key,rid:r.id,title:r.title,cat:r.cat,note:r.note,done:false});n++;} });
+  if(n) save();
+}
+/* 日任务没做完 → 挪到今天。重复任务如果今天本来就会再出现一次，就不挪，免得出现两条一样的 */
+function rollover(){
+  const t=today();let n=0;
+  S.tasks.forEach(x=>{
+    if(x.scope!=='day'||x.done||x.key>=t) return;
+    if(x.rid){const r=S.repeats.find(r=>r.id===x.rid);if(r&&t>=r.start&&matches(r,t)&&!r.skip.includes(t)) return;}
+    x.orig=x.orig||x.key;x.key=t;n++;
+  });
+  if(n) save();
+}
+function dailyUpkeep(){rollover();['day','week','month'].forEach(sc=>ensure(sc,curKey(sc)));}
+
+/* ================= 界面状态 ================= */
+const V={tab:'day',day:today(),week:weekOf(today()),month:monthOf(today()),calMonth:monthOf(today()),calDay:today()};
+let lastToday=today();
+let SH=null;   /* 当前弹窗 */
+
+const I=p=>`<svg class="ico" viewBox="0 0 24 24">${p}</svg>`;
+const ICON={
+  day:I('<circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4L7 17M17 7l1.4-1.4"/>'),
+  week:I('<rect x="3" y="5" width="18" height="14" rx="3"/><path d="M9 5v14M15 5v14"/>'),
+  month:I('<rect x="3" y="5" width="18" height="14" rx="3"/><path d="M3 10h18M3 14.500h18M9 10v9M15 10v9"/>'),
+  all:I('<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/>'),
+  plus:I('<path d="M12 5v14M5 12h14"/>'),
+  gear:I('<circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.600 5.600l2.100 2.100M16.300 16.300l2.100 2.100M5.600 18.400l2.100-2.100M16.300 7.700l2.100-2.100"/>'),
+  check:'<svg viewBox="0 0 24 24"><path d="M5 12.500l4.500 4.500L19 7.500"/></svg>'
+};
+const CATFACE=`<svg class="catface" viewBox="0 0 120 58" aria-hidden="true">
+  <path class="e" d="M1 38L27 4Q29.500 .5 32 4L58 38Z"/><path class="e" d="M59 38L85 4Q87.500 .5 90 4L116 38Z"/>
+  <rect class="p" x="27" y="36" width="5" height="10" rx="2.500"/><rect class="p" x="85" y="36" width="5" height="10" rx="2.500"/>
+  <path class="m" d="M54 43q0 4.500 2.250 4.500t2.250-3.500q0 3.500 2.250 3.500t2.250-4.500"/></svg>`;
+const CATNAV=`<svg class="catface nav" viewBox="-4 0 114 30" aria-hidden="true">
+  <path class="e" d="M-3 23L24 3Q27 .5 30 3L57 23Z"/><path class="e" d="M47 23L74 3Q77 .5 80 3L107 23Z"/>
+  <rect class="p" x="25" y="19" width="4" height="7" rx="2"/><rect class="p" x="75" y="19" width="4" height="7" rx="2"/>
+  <path class="m" d="M48 23q0 3.500 2 3.500t2-2.500q0 2.500 2 2.500t2-3.500"/></svg>`;
+
+const $=id=>document.getElementById(id);
+let toastT;
+function toast(m){const t=$('toast');t.textContent=m;t.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('on'),1800);}
+
+/* ================= 任务列表（三块底板） ================= */
+function taskHtml(t){
+  const tags=(t.rid?'<span class="tag">重复</span>':'')+(t.orig&&!t.done?`<span class="tag">${md(t.orig)}顺延</span>`:'');
+  return `<div class="task${t.done?' done':''}">
+    <button class="ck" data-a="toggle" data-id="${t.id}" aria-label="完成"><i>${ICON.check}</i></button>
+    <button class="tb" data-a="edit" data-id="${t.id}"><div class="t">${esc(t.title)}${tags}</div>${t.note?`<div class="s">${esc(t.note)}</div>`:''}</button>
+  </div>`;
+}
+function boards(sc,list,hideEmpty){
+  return CATS[sc].map((name,c)=>{
+    const l=list.filter(t=>t.cat===c).sort((a,b)=>a.done-b.done);
+    if(hideEmpty&&!l.length) return '';
+    return `<div class="board b${c}">
+      <div class="bh"><i class="dot"></i><b>${name}</b><span>${l.length?l.filter(t=>t.done).length+' / '+l.length:''}</span>
+        <button class="addc" data-a="add" data-cat="${c}" data-sc="${sc}" aria-label="添加${name}">${ICON.plus}</button></div>
+      ${l.length?l.map(taskHtml).join(''):'<div class="none">还没有任务</div>'}
+    </div>`;
+  }).join('');
+}
+function renderScope(sc){
+  const key=V[sc],cur=curKey(sc),isCur=key===cur;
+  ensure(sc,key);
+  const list=S.tasks.filter(t=>t.scope===sc&&t.key===key);
+  const done=list.filter(t=>t.done).length,total=list.length,L=label(sc,key);
+  const what={day:isCur?'今天':'这一天',week:isCur?'本周':'这一周',month:isCur?'本月':'这个月'}[sc];
+  const msg=!total?'还没有任务，点右下角的 ＋ 添加':done===total?'全部完成啦':`还剩 ${total-done} 个`;
+  $('p-'+sc).innerHTML=`<div class="scroll">
+    <div class="topbar">
+      <button class="nav" data-a="shift" data-n="-1" aria-label="往前">‹</button>
+      <div class="ttl"><b>${L.t}</b><span>${L.s}${isCur?'':` · <button class="back" data-a="now">回到${{day:'今天',week:'本周',month:'本月'}[sc]}</button>`}</span></div>
+      <button class="nav" data-a="shift" data-n="1" aria-label="往后">›</button>
+    </div>
+    <div class="card inkc eared">${CATFACE}
+      <div class="muted small">${what}完成</div>
+      <div class="big">${done}<small> / ${total}</small></div>
+      <div class="muted small">${msg}</div>
+      <div class="track"><div style="width:${total?Math.round(done/total*100):0}%"></div></div>
+    </div>
+    ${boards(sc,list,false)}
+  </div>`;
+}
+
+/* ================= 总览 ================= */
+function dayStat(k){
+  const l=S.tasks.filter(t=>t.scope==='day'&&t.key===k);
+  let total=l.length;const done=l.filter(t=>t.done).length,cats=new Set(l.map(t=>t.cat));
+  if(k>today()) S.repeats.forEach(r=>{if(wants(r,'day',k)){total++;cats.add(r.cat);}});   /* 以后的日子把重复任务也算进去 */
+  return {total,done,cats:[0,1,2].filter(c=>cats.has(c))};
+}
+function renderAll(){
+  const m=V.calMonth,first=pd(m+'-01'),days=new Date(first.getFullYear(),first.getMonth()+1,0).getDate(),t=today();
+  const cnt=f=>{const l=S.tasks.filter(f);return `${l.filter(x=>x.done).length}<small> / ${l.length}</small>`;};
+  let cells='';
+  for(let i=0;i<(first.getDay()+6)%7;i++) cells+='<span></span>';
+  for(let d=1;d<=days;d++){
+    const k=`${m}-${pad(d)}`,st=dayStat(k);
+    const cls=['cd',st.total?'has':'',k===t?'today':'',st.total&&st.done===st.total?'full':'',k===V.calDay?'on':''].join(' ');
+    cells+=`<button class="${cls}" data-a="pickDay" data-k="${k}"><b>${d}</b>
+      <span class="bars">${st.cats.map(c=>`<u style="background:var(--k${c})"></u>`).join('')}</span>
+      <i>${st.total?st.done+'/'+st.total:''}</i></button>`;
+  }
+  let detail='';
+  if(monthOf(V.calDay)===m){
+    ensure('day',V.calDay);
+    const l=S.tasks.filter(x=>x.scope==='day'&&x.key===V.calDay);
+    detail=`<div class="dayhead">${md(V.calDay)} 周${WD[pd(V.calDay).getDay()]}${l.length?'':' · 这天没有任务'}</div>${boards('day',l,true)}`;
+  }
+  $('p-all').innerHTML=`<div class="scroll">
+    <div class="headrow"><h2>总览</h2><button class="gear" data-a="settings" aria-label="设置">${ICON.gear}</button></div>
+    <div class="topbar">
+      <button class="nav" data-a="shift" data-n="-1" aria-label="上个月">‹</button>
+      <div class="ttl"><b>${first.getFullYear()}年${first.getMonth()+1}月</b>${m===monthOf(t)?'':'<span><button class="back" data-a="now">回到本月</button></span>'}</div>
+      <button class="nav" data-a="shift" data-n="1" aria-label="下个月">›</button>
+    </div>
+    <div class="tiles">
+      <div class="tile"><b>${cnt(x=>x.scope==='day'&&x.key.startsWith(m))}</b><span>日任务</span></div>
+      <div class="tile"><b>${cnt(x=>x.scope==='week'&&x.key.startsWith(m))}</b><span>周任务</span></div>
+      <div class="tile"><b>${cnt(x=>x.scope==='month'&&x.key===m)}</b><span>月任务</span></div>
+    </div>
+    <div class="card">
+      <div class="cal head">${'一二三四五六日'.split('').map(w=>`<span>${w}</span>`).join('')}</div>
+      <div class="cal">${cells}</div>
+    </div>
+    ${detail}
+  </div>`;
+}
+
+function render(){
+  const keep=document.querySelector('.page.on .scroll'),top=keep?keep.scrollTop:0,was=document.querySelector('.page.on');
+  document.querySelectorAll('.page').forEach(p=>p.classList.toggle('on',p.id==='p-'+V.tab));
+  document.querySelectorAll('#tabs .pill button').forEach(b=>b.classList.toggle('on',b.dataset.t===V.tab));
+  V.tab==='all'?renderAll():renderScope(V.tab);
+  const now=document.querySelector('.page.on');
+  if(now===was){const s=now.querySelector('.scroll');if(s) s.scrollTop=top;}
+}
+
+/* ================= 弹窗 ================= */
+function closeSheet(){SH=null;$('sheet').classList.remove('on');$('sheet').innerHTML='';}
+function readForm(){
+  if(!SH||SH.type!=='task') return;
+  const a=$('fTitle'),b=$('fNote');if(a) SH.title=a.value;if(b) SH.note=b.value;
+}
+const targetKey=sc=>sc==='day'?(V.tab==='all'?V.calDay:V.day):V[sc];
+function sheetHtml(){
+  if(SH.type==='task'){
+    const sc=SH.scope,edit=SH.mode==='edit',L=label(sc,SH.key);
+    const rep=sc==='day'?[['none','不重复'],['daily','每天'],['weekly','每周固定几天']]:[['none','不重复'],['every',sc==='week'?'每周':'每月']];
+    const t=edit?S.tasks.find(x=>x.id===SH.id):null;
+    return `<div class="box">
+      <h3>${edit?'修改任务':'添加任务'}</h3>
+      ${edit?'':`<div class="f"><div class="seg">${['day','week','month'].map(s=>`<button class="${s===sc?'on':''}" data-a="fScope" data-v="${s}">${SCOPE_NAME[s]}任务</button>`).join('')}</div>
+        <div class="hint">加到：${L.t}${sc==='day'?' '+L.s:sc==='month'?'（'+L.s+'）':''}</div></div>`}
+      <div class="f"><label>任务名字</label><input id="fTitle" maxlength="60" placeholder="要做什么" value="${esc(SH.title)}" enterkeyhint="done"></div>
+      <div class="f"><label>分类</label><div class="chips">${CATS[sc].map((n,c)=>`<button class="chip${SH.cat===c?' on':''}" data-a="fCat" data-v="${c}"><u style="background:var(--k${c})"></u>${n}</button>`).join('')}</div></div>
+      <div class="f"><label>备注（可以不写）</label><input id="fNote" maxlength="120" placeholder="" value="${esc(SH.note)}" enterkeyhint="done"></div>
+      ${edit?(t&&t.rid?'<div class="f"><div class="hint">这是一个重复任务，这里只改这一次的内容。</div></div>':''):`
+      <div class="f"><label>重复</label><div class="chips">${rep.map(r=>`<button class="chip${SH.rep===r[0]?' on':''}" data-a="fRep" data-v="${r[0]}">${r[1]}</button>`).join('')}</div>
+        ${SH.rep==='weekly'?`<div class="chips" style="margin-top:8px">${[1,2,3,4,5,6,0].map(d=>`<button class="chip wd${SH.days.includes(d)?' on':''}" data-a="fDay" data-v="${d}">${WD[d]}</button>`).join('')}</div>`:''}
+      </div>`}
+      <div class="err">${SH.err||''}</div>
+      <div class="btns">
+        ${edit?(t&&t.rid
+          ?`<button class="btn danger" data-a="del" data-v="one">${SH.confirm==='one'?'再点一次确认':'只删这一次'}</button><button class="btn danger" data-a="del" data-v="all">${SH.confirm==='all'?'再点一次确认':'以后都不再出现'}</button>`
+          :`<button class="btn danger" data-a="del" data-v="one">${SH.confirm==='one'?'再点一次确认删除':'删除'}</button>`):''}
+        <span class="sp"></span>
+        <button class="btn" data-a="close">取消</button>
+        <button class="btn primary" data-a="saveTask">${edit?'保存':'添加'}</button>
+      </div>
+    </div>`;
+  }
+  if(SH.type==='settings'){
+    const th=S.settings.theme;
+    return `<div class="box">
+      <h3>设置</h3>
+      <div class="f"><label>外观</label><div class="seg">${[['auto','跟随系统'],['light','浅色'],['dark','深色']].map(o=>`<button class="${th===o[0]?'on':''}" data-a="theme" data-v="${o[0]}">${o[1]}</button>`).join('')}</div></div>
+      <button class="set" data-a="export"><span class="grow">导出备份</span><span class="muted">›</span></button>
+      <button class="set" data-a="import"><span class="grow">从备份恢复</span><span class="muted">›</span></button>
+      <p class="msg small" style="margin-top:12px">任务只存在这台手机里。删除主屏幕上的图标会把任务一起删掉，删之前记得先导出备份。</p>
+      <div class="btns"><span class="sp"></span><button class="btn primary" data-a="close">好</button></div>
+    </div>`;
+  }
+  if(SH.type==='import'){
+    return `<div class="box">
+      <h3>从备份恢复</h3>
+      <p class="msg">备份里有 ${SH.data.tasks.length} 个任务。恢复后，现在手机里的任务会被这份备份替换掉。</p>
+      <div class="btns"><span class="sp"></span><button class="btn" data-a="close">取消</button><button class="btn primary" data-a="doImport">恢复</button></div>
+    </div>`;
+  }
+  return '';
+}
+function showSheet(focus){
+  $('sheet').innerHTML=sheetHtml();$('sheet').classList.add('on');
+  if(focus){const i=$('fTitle');if(i){i.focus();try{i.setSelectionRange(i.value.length,i.value.length);}catch(e){}}}
+}
+function openAdd(sc,cat){
+  SH={type:'task',mode:'add',scope:sc,key:targetKey(sc),cat:cat==null?0:cat,title:'',note:'',rep:'none',days:[]};
+  showSheet(true);
+}
+function saveTask(){
+  readForm();
+  const title=SH.title.trim(),note=SH.note.trim();
+  if(!title){SH.err='先写一下任务名字';showSheet(true);return;}
+  if(SH.mode==='edit'){
+    const t=S.tasks.find(x=>x.id===SH.id);
+    if(t){t.title=title;t.note=note;t.cat=SH.cat;}
+    save();closeSheet();render();return;
+  }
+  const sc=SH.scope,key=SH.key;
+  if(SH.rep==='none'){
+    S.tasks.push({id:uid(),scope:sc,key,title,cat:SH.cat,note,done:false});
+    toast('已添加');
+  }else{
+    if(SH.rep==='weekly'&&!SH.days.length){SH.err='选一下每周的哪几天';showSheet();return;}
+    const r={id:uid(),scope:sc,title,cat:SH.cat,note,rule:SH.rep==='weekly'?'weekly':'daily',days:SH.days.slice(),start:key,skip:[]};
+    S.repeats.push(r);
+    ensure(sc,key<curKey(sc)?curKey(sc):key);
+    toast(sc==='day'&&!matches(r,key)?'已添加，会在每周'+[1,2,3,4,5,6,0].filter(d=>r.days.includes(d)).map(d=>WD[d]).join('、')+'出现':'已添加，会自动重复');
+  }
+  save();closeSheet();render();
+}
+function delTask(mode){
+  if(SH.confirm!==mode){readForm();SH.confirm=mode;showSheet();return;}
+  const t=S.tasks.find(x=>x.id===SH.id);
+  if(t){
+    const r=t.rid&&S.repeats.find(r=>r.id===t.rid);
+    if(mode==='all'&&r){
+      S.repeats=S.repeats.filter(x=>x!==r);
+      S.tasks=S.tasks.filter(x=>x===t||!(x.rid===r.id&&!x.done&&x.gen>=curKey(x.scope)));
+    }else if(r&&t.gen) r.skip.push(t.gen);
+    S.tasks=S.tasks.filter(x=>x!==t);
+  }
+  save();closeSheet();render();toast('已删除');
+}
+
+/* ================= 备份 ================= */
+async function exportData(){
+  const name=`EeNote备份-${today()}.json`,text=JSON.stringify(S);
+  try{
+    const f=new File([text],name,{type:'application/json'});
+    if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f]});return;}
+  }catch(e){if(e&&e.name==='AbortError')return;}
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type:'application/json'}));a.download=name;
+  document.body.appendChild(a);a.click();a.remove();toast('备份已保存');
+}
+$('importFile').addEventListener('change',e=>{
+  const f=e.target.files[0];e.target.value='';if(!f) return;
+  const rd=new FileReader();
+  rd.onload=()=>{
+    try{const d=JSON.parse(rd.result);if(!d||!Array.isArray(d.tasks)) throw 0;SH={type:'import',data:d};showSheet();}
+    catch(err){toast('这个文件不是 Ee Note 的备份');}
+  };
+  rd.readAsText(f);
+});
+
+/* ================= 点击 ================= */
+const ACT={
+  tab(el){V.tab=el.dataset.t;render();},
+  shift(el){const n=+el.dataset.n;if(V.tab==='all') V.calMonth=addMonths(V.calMonth,n);else V[V.tab]=shift(V.tab,V[V.tab],n);render();},
+  now(){if(V.tab==='all'){V.calMonth=monthOf(today());V.calDay=today();}else V[V.tab]=curKey(V.tab);render();},
+  toggle(el){const t=S.tasks.find(x=>x.id===el.dataset.id);if(!t) return;t.done=!t.done;if(t.done) t.doneAt=Date.now();else delete t.doneAt;save();render();},
+  add(el){const sc=el.dataset.sc||(V.tab==='all'?'day':V.tab);openAdd(sc,el.dataset.cat==null?null:+el.dataset.cat);},
+  edit(el){const t=S.tasks.find(x=>x.id===el.dataset.id);if(!t) return;SH={type:'task',mode:'edit',id:t.id,scope:t.scope,key:t.key,cat:t.cat,title:t.title,note:t.note||''};showSheet();},
+  fScope(el){readForm();SH.scope=el.dataset.v;SH.key=targetKey(SH.scope);SH.rep='none';SH.days=[];SH.err='';showSheet();},
+  fCat(el){readForm();SH.cat=+el.dataset.v;showSheet();},
+  fRep(el){readForm();SH.rep=el.dataset.v;SH.err='';showSheet();},
+  fDay(el){readForm();const d=+el.dataset.v,i=SH.days.indexOf(d);i<0?SH.days.push(d):SH.days.splice(i,1);SH.err='';showSheet();},
+  saveTask(){saveTask();},
+  del(el){delTask(el.dataset.v);},
+  close(){closeSheet();},
+  pickDay(el){V.calDay=el.dataset.k;render();},
+  settings(){SH={type:'settings'};showSheet();},
+  theme(el){S.settings.theme=el.dataset.v;save();applyTheme(S.settings.theme);showSheet();},
+  export(){exportData();},
+  import(){$('importFile').click();},
+  doImport(){S=migrate(SH.data);save();applyTheme(S.settings.theme);dailyUpkeep();closeSheet();render();toast('已恢复');}
+};
+document.addEventListener('click',e=>{
+  const el=e.target.closest('[data-a]');
+  if(el){const f=ACT[el.dataset.a];if(f) f(el);return;}
+  if(e.target===$('sheet')) closeSheet();
+});
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&SH&&SH.type==='task'&&e.target.tagName==='INPUT'){e.preventDefault();saveTask();}});
+
+/* ================= 启动 ================= */
+$('tabs').innerHTML=`<div class="pill">${CATNAV}${[['day','日'],['week','周'],['month','月'],['all','总览']].map(t=>`<button data-a="tab" data-t="${t[0]}">${ICON[t[0]]}<span>${t[1]}</span></button>`).join('')}</div>
+  <button class="plus" data-a="add" aria-label="添加任务">${ICON.plus}</button>`;
+dailyUpkeep();
+applyTheme(S.settings.theme);
+if(window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>applyTheme(S.settings.theme));
+render();
+/* 过了半夜、或者隔天再打开时：把没做完的日任务挪到新的一天 */
+function checkDay(){
+  const t=today();if(t===lastToday) return;
+  if(V.day===lastToday) V.day=t;
+  if(V.calDay===lastToday){V.calDay=t;V.calMonth=monthOf(t);}
+  if(V.week===weekOf(lastToday)) V.week=weekOf(t);
+  if(V.month===monthOf(lastToday)) V.month=monthOf(t);
+  lastToday=t;dailyUpkeep();if(!SH) render();
+}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden) checkDay();});
+setInterval(checkDay,60000);
+if(navigator.storage&&navigator.storage.persist) navigator.storage.persist().catch(()=>{});
+if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script>
+</body>
+</html>
