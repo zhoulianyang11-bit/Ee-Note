@@ -31,13 +31,14 @@ function applyTheme(t){
   --k0:#75726c; --s0:#d5d3cd;      /* 浅灰：稿件 / 小说更新 */
   --k1:#6f8296; --s1:#d5dbe1;      /* 浅灰蓝：作业 / 画画更新 */
   --k2:#9585b8; --s2:#ddd8e8;      /* 浅紫：生活 */
-  --plus:#d9979f;                  /* 右下角“＋”圆钮：比猫眼睛浅灰一点的粉红 */
+  --k3:#b08a90; --s3:#e6d9da;      /* 低饱和浅粉：周/月的 画画更新 */
+  --plus:#d9979f;                 /* 右下角“＋”圆钮：比猫眼睛浅灰一点的粉红 */
   --radius:22px; --radius-s:14px;
   --font:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
 }
 :root[data-theme="dark"]{ color-scheme:dark; --bg:#111111; --card:#1e1e1f; --text:#f1efea; --muted:#8b8882; --line:#2f2f30;
   --ink:#d9d6cf; --on-ink:#1c1c1c; --accent:#b48cf0; --accent-soft:#3a2d52; --danger:#f25a4b;
-  --k0:#b5b2ab; --s0:#2d2d2e; --k1:#9aabbb; --s1:#2a323a; --k2:#ab9fcb; --s2:#322e3f; --plus:#b9808a; }
+  --k0:#b5b2ab; --s0:#2d2d2e; --k1:#9aabbb; --s1:#2a323a; --k2:#ab9fcb; --s2:#322e3f; --k3:#c9a4a9; --s3:#3a2f31; --plus:#b9808a; }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;margin:0}
 body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:15px;letter-spacing:-.01em;overflow:hidden;touch-action:manipulation;-webkit-user-select:none;user-select:none}
@@ -81,11 +82,11 @@ h2{font-size:32px;font-weight:500;letter-spacing:-.03em;margin:0}
 
 /* 三种颜色的任务底板 */
 .board{border-radius:var(--radius);padding:12px 12px 6px;margin-bottom:12px}
-.b0{background:var(--s0)} .b1{background:var(--s1)} .b2{background:var(--s2)}
+.b0{background:var(--s0)} .b1{background:var(--s1)} .b2{background:var(--s2)} .b3{background:var(--s3)}
 .bh{display:flex;align-items:center;gap:8px;padding:0 2px 6px}
 .bh b{font-size:17px;font-weight:500}
 .bh .dot{width:10px;height:10px;border-radius:3px;flex:none}
-.b0 .dot{background:var(--k0)} .b1 .dot{background:var(--k1)} .b2 .dot{background:var(--k2)}
+.board .dot{background:var(--kc)}
 .bh span{font-size:12px;color:var(--muted)}
 .bh .addc{margin-left:auto;width:30px;height:30px;border-radius:50%;background:color-mix(in srgb,var(--card) 70%,transparent);display:flex;align-items:center;justify-content:center;font-size:15px}
 .none{font-size:13px;color:var(--muted);padding:4px 2px 10px}
@@ -93,7 +94,7 @@ h2{font-size:32px;font-weight:500;letter-spacing:-.03em;margin:0}
 .ck{width:40px;height:44px;flex:none;display:flex;align-items:center;justify-content:center}
 .ck i{width:22px;height:22px;border-radius:50%;border:1.8px solid var(--kc);display:flex;align-items:center;justify-content:center;color:transparent}
 .ck i svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
-.b0{--kc:var(--k0)} .b1{--kc:var(--k1)} .b2{--kc:var(--k2)}
+.b0{--kc:var(--k0)} .b1{--kc:var(--k1)} .b2{--kc:var(--k2)} .b3{--kc:var(--k3)}
 .task.done .ck i{background:var(--kc);color:var(--card)}
 .tb{flex:1;min-width:0;text-align:left;padding:11px 4px 11px 0;min-height:44px}
 .tb .t{font-size:16px;line-height:1.35;word-break:break-word}
@@ -184,8 +185,9 @@ h2{font-size:32px;font-weight:500;letter-spacing:-.03em;margin:0}
 'use strict';
 /* ================= 数据 ================= */
 const KEY='eenote-v1';
-/* 三种分类的名字：日任务一组，周/月任务一组（顺序对应 紫 / 红 / 绿） */
-const CATS={day:['稿件','作业','生活'],week:['小说更新','画画更新','生活'],month:['小说更新','画画更新','生活']};
+/* 分类：id 是存进任务里的编号（不要改），col 是用哪种颜色（0 灰 / 1 灰蓝 / 2 紫 / 3 粉），数组顺序就是页面上从上到下的顺序 */
+const WM_CATS=[{id:0,name:'小说更新',col:0},{id:1,name:'画画更新',col:3},{id:3,name:'作业',col:1},{id:2,name:'生活',col:2}];
+const CATS={day:[{id:0,name:'稿件',col:0},{id:1,name:'作业',col:1},{id:2,name:'生活',col:2}],week:WM_CATS,month:WM_CATS};
 const SCOPE_NAME={day:'日',week:'周',month:'月'};
 const WD=['日','一','二','三','四','五','六'];
 
@@ -281,10 +283,11 @@ function taskHtml(t){
   </div>`;
 }
 function boards(sc,list,hideEmpty){
-  return CATS[sc].map((name,c)=>{
+  return CATS[sc].map(C=>{
+    const c=C.id,name=C.name;
     const l=list.filter(t=>t.cat===c).sort((a,b)=>a.done-b.done);
     if(hideEmpty&&!l.length) return '';
-    return `<div class="board b${c}">
+    return `<div class="board b${C.col}">
       <div class="bh"><i class="dot"></i><b>${name}</b><span>${l.length?l.filter(t=>t.done).length+' / '+l.length:''}</span>
         <button class="addc" data-a="add" data-cat="${c}" data-sc="${sc}" aria-label="添加${name}">${ICON.plus}</button></div>
       ${l.length?l.map(taskHtml).join(''):'<div class="none">还没有任务</div>'}
@@ -385,7 +388,7 @@ function sheetHtml(){
       ${edit?'':`<div class="f"><div class="seg">${['day','week','month'].map(s=>`<button class="${s===sc?'on':''}" data-a="fScope" data-v="${s}">${SCOPE_NAME[s]}任务</button>`).join('')}</div>
         <div class="hint">加到：${L.t}${sc==='day'?' '+L.s:sc==='month'?'（'+L.s+'）':''}</div></div>`}
       <div class="f"><label>任务名字</label><input id="fTitle" maxlength="60" placeholder="要做什么" value="${esc(SH.title)}" enterkeyhint="done"></div>
-      <div class="f"><label>分类</label><div class="chips">${CATS[sc].map((n,c)=>`<button class="chip${SH.cat===c?' on':''}" data-a="fCat" data-v="${c}"><u style="background:var(--k${c})"></u>${n}</button>`).join('')}</div></div>
+      <div class="f"><label>分类</label><div class="chips">${CATS[sc].map(C=>`<button class="chip${SH.cat===C.id?' on':''}" data-a="fCat" data-v="${C.id}"><u style="background:var(--k${C.col})"></u>${C.name}</button>`).join('')}</div></div>
       <div class="f"><label>备注（可以不写）</label><input id="fNote" maxlength="120" placeholder="" value="${esc(SH.note)}" enterkeyhint="done"></div>
       ${edit?(t&&t.rid?'<div class="f"><div class="hint">这是一个重复任务，这里只改这一次的内容。</div></div>':''):`
       <div class="f"><label>重复</label><div class="chips">${rep.map(r=>`<button class="chip${SH.rep===r[0]?' on':''}" data-a="fRep" data-v="${r[0]}">${r[1]}</button>`).join('')}</div>
@@ -494,7 +497,7 @@ const ACT={
   toggle(el){const t=S.tasks.find(x=>x.id===el.dataset.id);if(!t) return;t.done=!t.done;if(t.done) t.doneAt=Date.now();else delete t.doneAt;save();render();},
   add(el){const sc=el.dataset.sc||(V.tab==='all'?'day':V.tab);openAdd(sc,el.dataset.cat==null?null:+el.dataset.cat);},
   edit(el){const t=S.tasks.find(x=>x.id===el.dataset.id);if(!t) return;SH={type:'task',mode:'edit',id:t.id,scope:t.scope,key:t.key,cat:t.cat,title:t.title,note:t.note||''};showSheet();},
-  fScope(el){readForm();SH.scope=el.dataset.v;SH.key=targetKey(SH.scope);SH.rep='none';SH.days=[];SH.err='';showSheet();},
+  fScope(el){readForm();SH.scope=el.dataset.v;SH.key=targetKey(SH.scope);if(!CATS[SH.scope].some(C=>C.id===SH.cat)) SH.cat=0;SH.rep='none';SH.days=[];SH.err='';showSheet();},
   fCat(el){readForm();SH.cat=+el.dataset.v;showSheet();},
   fRep(el){readForm();SH.rep=el.dataset.v;SH.err='';showSheet();},
   fDay(el){readForm();const d=+el.dataset.v,i=SH.days.indexOf(d);i<0?SH.days.push(d):SH.days.splice(i,1);SH.err='';showSheet();},
